@@ -32,6 +32,9 @@ from   xalt_global   import *
 from   xalt_site_pkg import translate
 warnings.filterwarnings("ignore", "Unknown table.*")
 
+from xalt_db_model import *
+from sqlalchemy import and_
+
 def convertToInt(s):
   """
   Convert to string to int.  Protect against bad input.
@@ -120,53 +123,44 @@ class XALTdb(object):
     @param reverseMapT: The reverse map table that maps directories to modules
     @param linkT:       The table that contains the link data.
     """
-    query = ""
+    
+    session = Session()
 
-    try:
-      conn   = self.connect()
-      query  = "USE "+self.db()
-      conn.query(query)
-      query  = "START TRANSACTION"
-      conn.query(query)
-      
-
-      query  = "SELECT uuid FROM xalt_link WHERE uuid='%s'" % linkT['uuid']
-      conn.query(query)
-      result = conn.store_result()
-      if (result.num_rows() > 0):
-        return
-
-      build_epoch = float(linkT['build_epoch'])
-      dateTimeStr = time.strftime("%Y-%m-%d %H:%M:%S",
-                                  time.localtime(float(linkT['build_epoch'])))
-
-      #paranoid conversion:  Protect DB from bad input:
-      exit_code = convertToInt(linkT['exit_code'])
-      exec_path = patSQ.sub(r"\\'", linkT['exec_path'])
-
-
-      # It is unique: lets store this link record
-      query = "INSERT into xalt_link VALUES (NULL,'%s','%s','%s','%s','%s','%s','%.2f','%d','%s') " % (
-        linkT['uuid'],         linkT['hash_id'],         dateTimeStr,
-        linkT['link_program'], linkT['build_user'],      linkT['build_syshost'],
-        build_epoch,           exit_code,                exec_path)
-      conn.query(query)
-      link_id = conn.insert_id()
-
-      XALT_Stack.push("load_xalt_objects():"+linkT['exec_path'])
-      self.load_objects(conn, linkT['linkA'], reverseMapT, linkT['build_syshost'],
-                        "join_link_object", link_id)
-      v = XALT_Stack.pop()  # unload function()
-      carp("load_xalt_objects()",v)
-      query = "COMMIT"
-      conn.query(query)
-      conn.close()
-
-    except Exception as e:
-      print(XALT_Stack.contents())
-      print(query)
-      print ("link_to_db(): Error ",e)
-      sys.exit (1)
+    # check if linkT['uuid'] already in db - if yes: do nothing
+    link = session.query(XALT_link).filter(XALT_link.uuid == linkT['uuid']).scalar() 
+    if link is not None: 
+      link = XALT_link( uuid = linkT['uuid'],
+                        hash_id = linkT['hash_id'],
+                        link_program = linkT['link_program'],
+                        build_user = linkT['build_user'],
+                        build_syshost = linkT['build_syshost'],
+                        build_epoch = float(linkT['build_epoch']),
+                        date = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(float(linkT['build_epoch']))),
+                        exit_code = convertToInt(linkT['exit_code']),
+                        exec_path = patSQ.sub(r"\\'", linkT['exec_path'])
+                      )
+                        
+      for obj in linkT['linkA']: 
+        # for each linkT['linkA']:
+        #   - load object id -> if exist use, if not exist -> create
+        obj =  session.query(XALT_object)
+                    .filter(and_(
+                              XALT_object.hash_id == obj[0],
+                              XALT_object.object_path == obj[1],
+                              XALT_object.syshost ==  linkT['build_syshost']))
+                    .scalar()
+        if obj_id == None:
+          obj = XALT_object(  hash_id = obj[0],
+                              object_path = obj[1],
+                              syshost = linkT['build_syshost'],
+                              module_name = obj2module(object_path, reverseMapT),
+                              timestamp = datetime.now(),
+                              lib_type = obj_type(object_path)
+                            )
+        link.objects.append(obj)
+        session.add(obj)
+      session.add(link)
+      session.commit()
 
   def load_objects(self, conn, objA, reverseMapT, syshost, tableName, index):
     """
