@@ -1,5 +1,5 @@
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, DateTime, Float, Index, Table, ForeignKey, create_engine
+from sqlalchemy import Column, Integer, String, DateTime, Float, Index, Table, LargeBinary, ForeignKey, create_engine
 from sqlalchemy.orm import relationship, backref, sessionmaker
 from datetime import datetime
 
@@ -79,6 +79,20 @@ class XALT_env_name(Base):
 
   env_id = Column(Integer, primary_key=True)
   env_name = Column(String, nullable=False)
+
+class XALT_job_id(Base):
+  __tablename__ = 'xalt_job_id'
+
+  inc_id = Column(Integer, primary_key=True)
+  job_id = Column(Integer, nullable=False)
+
+class XALT_join_run_env(Base):
+  __tablename__ = 'join_run_env'
+
+  join_id = Column(Integer, primary_key=True)
+  env_id = Column(Integer, nullable=False, ForeignKey('xalt_env_name.env_id'))
+  run_id = Column(Integer, nullable=False, ForeignKey('xalt_run.run_id'))
+  env_value = Column(LargeBinary, nullable=False)
 
 class XALT_job_id(Base):
   __tablename__ = 'xalt_job_id'
