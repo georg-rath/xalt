@@ -99,8 +99,8 @@ class XALTdb(object):
     session = Session()
 
     # check if linkT['uuid'] already in db - if yes: do nothing
-    link = session.query(XALT_link).filter(XALT_link.uuid == linkT['uuid']).scalar() 
-    if link is not None: 
+    link = session.query(XALT_link).filter(XALT_link.uuid == linkT['uuid']).scalar()
+    if link is not None:
       link = XALT_link( uuid = linkT['uuid'],
                         hash_id = linkT['hash_id'],
                         link_program = linkT['link_program'],
@@ -111,8 +111,8 @@ class XALTdb(object):
                         exit_code = convertToInt(linkT['exit_code']),
                         exec_path = patSQ.sub(r"\\'", linkT['exec_path'])
                       )
-                        
-      for obj in linkT['linkA']: 
+
+      for obj in linkT['linkA']:
         # for each linkT['linkA']:
         #   - load object id -> if exist use, if not exist -> create
         obj = session.query(XALT_object).filter(and_(
@@ -186,7 +186,6 @@ class XALTdb(object):
             module_name = moduleName,
             cwd = runT['userT']['cwd']
         )
-
 
         for obj in runT['libA']:
           object_path = obj[0]
