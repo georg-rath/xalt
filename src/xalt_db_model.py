@@ -1,23 +1,22 @@
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, DateTime, Float, Index, Table, LargeBinary, ForeignKey, create_engine
-from sqlalchemy.orm import relationship, backref, sessionmaker
-from datetime import datetime
+from sqlalchemy.orm import relationship
 
-Base = declarative_base()
+__Base = declarative_base()
 
 relation_assoc_link_object =  Table('join_link_object',
-                                    Base.metadata,
+                                    __Base.metadata,
                                     Column('link_id', Integer, ForeignKey('xalt_link.link_id')),
                                     Column('obj_id', Integer, ForeignKey('xalt_object.obj_id'))
                               )
 
 relation_assoc_run_object =  Table('join_run_object',
-                                    Base.metadata,
+                                    __Base.metadata,
                                     Column('obj_id', Integer, ForeignKey('xalt_object.obj_id')),
                                     Column('run_id', Integer, ForeignKey('xalt_run.run_id'))
                               )
 
-class XALT_link(Base):
+class XALT_link(__Base):
   __tablename__ = 'xalt_link'
 
   link_id = Column(Integer, primary_key=True)
@@ -30,9 +29,9 @@ class XALT_link(Base):
   build_epoch = Column(Float, nullable=False)
   exit_code = Column(Integer, nullable=False)
   exec_path = Column(String, nullable=False)
-  objects = relationship('XALT_link', secondary=lambda: relation_assoc_link_object)
+  objects = relationship('XALT_object', secondary=lambda: relation_assoc_link_object)
 
-class XALT_run(Base):
+class XALT_run(__Base):
   __tablename__ = 'xalt_run'
 
   run_id = Column(Integer, primary_key=True)
@@ -49,6 +48,7 @@ class XALT_run(Base):
   run_time = Column(Float, nullable=False)
   num_cores = Column(Integer, nullable=False)
   num_nodes = Column(Integer, nullable=False)
+  num_threads = Column(Integer, nullable=False)
   queue = Column(String, nullable=False)
   exit_code = Column(Integer, nullable=False)
   user = Column(String(length=64), nullable=False)
@@ -56,10 +56,10 @@ class XALT_run(Base):
   module_name = Column(String, nullable=True)
   cwd = Column(String, nullable=True)
    
-  objects = relationship('XALT_run', secondary=relation_assoc_run_object)
+  objects = relationship('XALT_object', secondary=relation_assoc_run_object)
   __table_args__ = ( Index('index_run_uuid', 'run_uuid'), Index('index_jobid_syshost', 'job_id', 'syshost') )
 
-class XALT_object(Base):
+class XALT_object(__Base):
   __tablename__ = 'xalt_object'
 
   obj_id = Column(Integer, primary_key=True)
@@ -74,32 +74,32 @@ class XALT_object(Base):
   
   __table_args__ = ( Index('index_hash_id', 'hash_id'), Index('index_objpath_hashid_syshost', 'object_path', 'hash_id', 'syshost') )
 
-class XALT_env_name(Base):
+class XALT_env_name(__Base):
   __tablename__ = 'xalt_env_name'
 
   env_id = Column(Integer, primary_key=True)
   env_name = Column(String, nullable=False)
 
-class XALT_job_id(Base):
+class XALT_job_id(__Base):
   __tablename__ = 'xalt_job_id'
 
   inc_id = Column(Integer, primary_key=True)
   job_id = Column(Integer, nullable=False)
 
-class XALT_join_run_env(Base):
+class XALT_join_run_env(__Base):
   __tablename__ = 'join_run_env'
 
   join_id = Column(Integer, primary_key=True)
-  env_id = Column(Integer, nullable=False, ForeignKey('xalt_env_name.env_id'))
-  run_id = Column(Integer, nullable=False, ForeignKey('xalt_run.run_id'))
+  env_id = Column(Integer,  ForeignKey('xalt_env_name.env_id'), nullable=False)
+  run_id = Column(Integer, ForeignKey('xalt_run.run_id'), nullable=False)
   env_value = Column(LargeBinary, nullable=False)
+  env_name = relationship('XALT_env_name')
+  run = relationship('XALT_run')
 
-class XALT_job_id(Base):
-  __tablename__ = 'xalt_job_id'
 
-  inc_id = Column(Integer, primary_key=True)
-  job_id = Column(Integer, nullable=False)
+def initialize_schema(engine):
+  __Base.metadata.create_all(engine)
 
-engine = create_engine('sqlite:///:memory:', echo=True)
-Base.metadata.create_all(engine)
-Session = sessionmaker(bind=engine)
+def destroy_schema(connection_string):
+  engine = create_engine('sqlite:///:memory:')
+  __Base.metadata.drop_all(engine)

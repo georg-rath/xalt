@@ -20,13 +20,16 @@
 #-----------------------------------------------------------------------
 
 from __future__ import print_function
-from time       import sleep
-import os, sys, re, base64
+import os, sys
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import SQLAlchemyError
+from datetime import datetime
+
 dirNm, execName = os.path.split(os.path.realpath(sys.argv[0]))
 sys.path.append(os.path.realpath(os.path.join(dirNm, "../libexec")))
 sys.path.append(os.path.realpath(os.path.join(dirNm, "../site")))
 
-import MySQLdb, ConfigParser, getpass, time
+import ConfigParser
 import warnings
 from   xalt_util     import *
 from   xalt_global   import *
@@ -56,20 +59,14 @@ class XALTdb(object):
   """
   def __init__(self, confFn):
     """ Initialize the class and save the db config file. """
-    self.__host   = None
-    self.__user   = None
-    self.__passwd = None
-    self.__db     = None
+    self.__connection_string   = None
     self.__conn   = None
     self.__confFn = confFn
 
   def __readFromUser(self):
     """ Ask user for database access info. (private) """
 
-    self.__host   = raw_input("Database host:")
-    self.__user   = raw_input("Database user:")
-    self.__passwd = getpass.getpass("Database pass:")
-    self.__db     = raw_input("Database name:")
+    self.__connection_string   = raw_input("Database host:")
 
   def __readConfig(self):
     """ Read database access info from config file. (private)"""
@@ -77,10 +74,7 @@ class XALTdb(object):
     try:
       config=ConfigParser.ConfigParser()
       config.read(confFn)
-      self.__host    = config.get("MYSQL","HOST")
-      self.__user    = config.get("MYSQL","USER")
-      self.__passwd  = base64.b64decode(config.get("MYSQL","PASSWD"))
-      self.__db      = config.get("MYSQL","DB")
+      self.__connection_string    = config.get("DATABASE","CONNECTION_STRING")
     except ConfigParser.NoOptionError, err:
       sys.stderr.write("\nCannot parse the config file\n")
       sys.stderr.write("Switch to user input mode...\n\n")
@@ -97,31 +91,21 @@ class XALTdb(object):
     else:
       self.__readFromUser()
 
-    n = 100
-    for i in xrange(0,n+1):
-      try:
-        self.__conn = MySQLdb.connect (self.__host,self.__user,self.__passwd)
-        if (db):
-          cursor = self.__conn.cursor()
-          
-          # If MySQL version < 4.1, comment out the line below
-          cursor.execute("SET SQL_MODE=\"NO_AUTO_VALUE_ON_ZERO\"")
-          cursor.execute("USE "+xalt.db())
+    try:
+        if self.__conn is None:
+          engine = create_engine(self.__connection_string)
+          initialize_schema(engine)
+          self.__conn = sessionmaker(bind=engine)
 
-      except MySQLdb.Error, e:
-        if (i < n):
-          sleep(i*0.1)
-          pass
-        else:
-          print ("XALTdb(%d): Error %d: %s" % (i, e.args[0], e.args[1]), file=sys.stderr)
-          raise
+    except SQLAlchemyError, e:
+      print ("XALTdb: Error %d: %s" % (e.args[0], e.args[1]), file=sys.stderr)
+      raise
 
     return self.__conn
 
-
-  def db(self):
-    """ Return name of db"""
-    return self.__db
+  def connection_string(self):
+    """ Return connection string"""
+    return self.__connection_string
 
   def link_to_db(self, reverseMapT, linkT):
     """
@@ -129,89 +113,52 @@ class XALTdb(object):
     @param reverseMapT: The reverse map table that maps directories to modules
     @param linkT:       The table that contains the link data.
     """
-    
-    session = Session()
-
-    # check if linkT['uuid'] already in db - if yes: do nothing
-    link = session.query(XALT_link).filter(XALT_link.uuid == linkT['uuid']).scalar() 
-    if link is not None: 
-      link = XALT_link( uuid = linkT['uuid'],
-                        hash_id = linkT['hash_id'],
-                        link_program = linkT['link_program'],
-                        build_user = linkT['build_user'],
-                        build_syshost = linkT['build_syshost'],
-                        build_epoch = float(linkT['build_epoch']),
-                        date = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(float(linkT['build_epoch']))),
-                        exit_code = convertToInt(linkT['exit_code']),
-                        exec_path = patSQ.sub(r"\\'", linkT['exec_path'])
-                      )
-                        
-      for obj in linkT['linkA']: 
-        # for each linkT['linkA']:
-        #   - load object id -> if exist use, if not exist -> create
-        obj =  session.query(XALT_object)
-                    .filter(and_(
-                              XALT_object.hash_id == obj[0],
-                              XALT_object.object_path == obj[1],
-                              XALT_object.syshost ==  linkT['build_syshost']))
-                    .scalar()
-        if obj_id == None:
-          obj = XALT_object(  hash_id = obj[0],
-                              object_path = obj[1],
-                              syshost = linkT['build_syshost'],
-                              module_name = obj2module(object_path, reverseMapT),
-                              timestamp = datetime.now(),
-                              lib_type = obj_type(object_path)
-                            )
-        link.objects.append(obj)
-        session.add(obj)
-      session.add(link)
-      session.commit()
-
-  def load_objects(self, conn, objA, reverseMapT, syshost, tableName, index):
-    """
-    Stores the objects that make an executable into the XALT DB.
-    @param conn:         The db connection object
-    @param objA:         The array of objects that are stored.
-    @param reverseMapT:  The map between directories and modules
-    @param syshost:      The system host name (stampede, darter), not login1.stampede.tacc.utexas.edu
-    @param tableName:    Name of the object table.
-    @param index:        The db index for the join table.
-    """
 
     try:
-      for entryA in objA:
-        object_path  = entryA[0]
-        hash_id      = entryA[1]
-        if (hash_id == "unknown"):
-          continue
+        if self.__conn is None:
+            self.connect(self)
+        session = self.__conn()
 
-        query = "SELECT obj_id, object_path FROM xalt_object WHERE hash_id='%s' AND object_path='%s' AND syshost='%s'" % (
-          hash_id, object_path, syshost)
-        
-        conn.query(query)
-        result = conn.store_result()
-        if (result.num_rows() > 0):
-          row    = result.fetch_row()
-          obj_id = int(row[0][0])
-        else:
-          moduleName = obj2module(object_path, reverseMapT)
-          obj_kind   = obj_type(object_path)
+        # check if linkT['uuid'] already in db - if yes: do nothing
+        db_link = session.query(XALT_link).filter(XALT_link.uuid == linkT['uuid']).scalar()
+        if db_link is None:
+            db_link = XALT_link(
+                uuid = linkT['uuid'],
+                hash_id = linkT['hash_id'],
+                link_program = linkT['link_program'],
+                build_user = linkT['build_user'],
+                build_syshost = linkT['build_syshost'],
+                build_epoch = float(linkT['build_epoch']),
+                date = datetime.fromtimestamp(float(linkT['build_epoch'])),
+                exit_code = convertToInt(linkT['exit_code']),
+                exec_path = patSQ.sub(r"\\'", linkT['exec_path'])
+            )
 
-          query      = "INSERT into xalt_object VALUES (NULL,'%s','%s','%s',%s,NOW(),'%s') " % (
-                      object_path, syshost, hash_id, moduleName, obj_kind)
-          conn.query(query)
-          obj_id   = conn.insert_id()
-          #print("obj_id: ",obj_id, ", obj_kind: ", obj_kind,", path: ", object_path, "moduleName: ", moduleName)
+            for obj in linkT['linkA']:
+              object_path = obj[0]
+              hash_id = obj[1]
 
-        # Now link libraries to xalt_link record:
-        query = "INSERT into %s VALUES (NULL,'%d','%d') " % (tableName, obj_id, index)
-        conn.query(query)
-  
+              # for each linkT['linkA']:
+              #   - load object id -> if exist use, if not exist -> create
+              db_obj = session.query(XALT_object) .filter(and_(
+                                    XALT_object.hash_id == hash_id,
+                                    XALT_object.object_path == object_path,
+                                    XALT_object.syshost ==  linkT['build_syshost'])).scalar()
+              if db_obj is None:
+                db_obj = XALT_object(
+                    hash_id = hash_id,
+                    object_path = object_path,
+                    syshost = linkT['build_syshost'],
+                    module_name = obj2module(object_path, reverseMapT),
+                    timestamp = datetime.now(),
+                    lib_type = obj_type(object_path)
+                )
+              db_link.objects.append(db_obj)
+              session.add(db_obj)
+            session.add(db_link)
+            session.commit()
     except Exception as e:
-      print(XALT_Stack.contents())
-      print(query)
-      print ("load_xalt_objects(): Error %d: %s" % (e.args[0], e.args[1]))
+      print ("link_to_db(): Error ",e)
       sys.exit (1)
 
   def run_to_db(self, reverseMapT, runT):
@@ -220,102 +167,99 @@ class XALTdb(object):
     @param: reverseMapT: The map between directories and modules
     @param: runT:        The run data stored in a table
     """
-    
+
     nameA = [ 'num_cores', 'num_nodes', 'account', 'job_id', 'queue' , 'submit_host']
-    query = ""
     try:
-      conn   = self.connect()
-      query  = "USE "+self.db()
-      conn.query(query)
-      query  = "START TRANSACTION"
-      conn.query(query)
+      # ORM: open connex
+      if self.__conn is None:
+        self.connect(self)
+      session = self.__conn()
 
-      
-      translate(nameA, runT['envT'], runT['userT']);
-      XALT_Stack.push("SUBMIT_HOST: "+ runT['userT']['submit_host'])
-
-      dateTimeStr = time.strftime("%Y-%m-%d %H:%M:%S",
-                                  time.localtime(float(runT['userT']['start_time'])))
-      uuid        = runT['xaltLinkT'].get('Build.UUID')
+      translate(nameA, runT['envT'], runT['userT'])
+      dateTimeStr = datetime.fromtimestamp(float(runT['userT']['start_time']))
+      uuid = runT['xaltLinkT'].get('Build.UUID')
       if (uuid):
         uuid = "'" + uuid + "'"
       else:
         uuid = "NULL"
 
-      #print( "Looking for run_uuid: ",runT['userT']['run_uuid'])
 
-      query = "SELECT run_id FROM xalt_run WHERE run_uuid='%s'" % runT['userT']['run_uuid']
-      conn.query(query)
+      db_run = session.query(XALT_run).filter(XALT_run.run_uuid == runT['userT']['run_uuid']).scalar()
 
-      result = conn.store_result()
-      if (result.num_rows() > 0):
-        #print("found")
-        row    = result.fetch_row()
-        run_id = int(row[0][0])
-        if (runT['userT']['end_time'] > 0):
-          query  = "UPDATE xalt_run SET run_time='%.2f', end_time='%.2f' WHERE run_id='%d'" % (
-            runT['userT']['run_time'], runT['userT']['end_time'], run_id)
-          conn.query(query)
-          query = "COMMIT"
-          conn.query(query)
-        v = XALT_Stack.pop()
-        carp("SUBMIT_HOST",v)
-
-        return
+      if db_run is not None:
+        db_run.run_time = runT['userT']['run_time']
+        db_run.end_time = runT['userT']['end_time']
       else:
-        #print("not found")
-        moduleName    = obj2module(runT['userT']['exec_path'], reverseMapT)
-        exit_status   = int(runT['userT'].get('exit_status',0))
+        moduleName  = obj2module(runT['userT']['exec_path'], reverseMapT)
+        exit_status = runT['userT'].get('exit_status',0)
         job_num_cores = int(runT['userT'].get('job_num_cores',0))
-        query  = "INSERT INTO xalt_run VALUES (NULL,'%s','%s','%s', '%s',%s,'%s', '%s','%s','%.2f', '%.2f','%.2f','%d', '%d','%d','%d', '%s','%d','%s', '%s','%s','%s') " % (
-          runT['userT']['job_id'],      runT['userT']['run_uuid'],    dateTimeStr,
-          runT['userT']['syshost'],     uuid,                         runT['hash_id'],
-          runT['userT']['account'],     runT['userT']['exec_type'],   runT['userT']['start_time'],
-          runT['userT']['end_time'],    runT['userT']['run_time'],    runT['userT']['num_cores'],
-          job_num_cores,                runT['userT']['num_nodes'],   runT['userT']['num_threads'],
-          runT['userT']['queue'],       exit_status,                  runT['userT']['user'],
-          runT['userT']['exec_path'],   moduleName,                   runT['userT']['cwd'])
-        conn.query(query)
-        run_id   = conn.insert_id()
 
-      self.load_objects(conn, runT['libA'], reverseMapT, runT['userT']['syshost'],
-                        "join_run_object", run_id) 
+        db_run = XALT_run(
+              run_uuid = runT['userT']['run_uuid'],
+              job_id = runT['userT']['job_id'],
+              date = dateTimeStr,
+              syshost = runT['userT']['syshost'],
+              uuid = uuid,
+              hash_id = runT['hash_id'],
+              account = runT['userT']['account'],
+              exec_type = runT['userT']['exec_type'],
+              start_time = runT['userT']['start_time'],
+              end_time = runT['userT']['end_time'],
+              run_time = runT['userT']['run_time'],
+              num_cores = runT['userT']['num_cores'],
+              num_nodes = runT['userT']['num_nodes'],
+              num_threads = runT['userT']['num_threads'],
+              queue = runT['userT']['queue'],
+              exit_code = exit_status,
+              user = runT['userT']['user'],
+              exec_path = runT['userT']['exec_path'],
+              module_name = moduleName,
+              cwd = runT['userT']['cwd']
+              job_num_cores = job_num_cores
+          )
 
-      # loop over env. vars.
+
+        for obj in runT['libA']:
+          object_path = obj[0]
+          hash_id = obj[1]
+
+          # for each runT['libA']:
+          #   - load object id -> if exist use, if not exist -> create
+          db_obj = session.query(XALT_object) .filter(and_(
+            XALT_object.hash_id == hash_id,
+            XALT_object.object_path == object_path,
+            XALT_object.syshost == runT['userT']['syshost'])).scalar()
+          if db_obj is None:
+            db_obj = XALT_object(
+                hash_id = hash_id,
+                object_path = object_path,
+                syshost = runT['userT']['syshost'],
+                module_name = obj2module(object_path, reverseMapT),
+                timestamp = datetime.now(),
+                lib_type = obj_type(object_path)
+            )
+          db_run.objects.append(db_obj)
+          session.add(db_obj)
+      session.add(db_run)
+
       for key in runT['envT']:
         # use the single quote pattern to protect all the single quotes in env vars.
         value = patSQ.sub(r"\\'", runT['envT'][key])
-        query = "SELECT env_id FROM xalt_env_name WHERE env_name='%s'" % key
-        conn.query(query)
-        result = conn.store_result()
-        if (result.num_rows() > 0):
-          row    = result.fetch_row()
-          env_id = int(row[0][0])
-          found  = True
-        else:
-          query  = "INSERT INTO xalt_env_name VALUES(NULL, '%s')" % key
-          conn.query(query)
-          env_id = conn.insert_id()
-          found  = False
+        db_env = session.query(XALT_env_name).filter(XALT_env_name.env_name == key).scalar()
+        if db_env is None:
+          db_env = XALT_env_name(env_name = key)
 
-        
-        query = "INSERT INTO join_run_env VALUES (NULL, '%d', '%d', '%s')" % (
-          env_id, run_id, value.encode("ascii","ignore"))
-        try:
-          conn.query(query)
-        except Exception as e:
-          query = "INSERT INTO join_run_env VALUES (NULL, '%d', '%d', '%s')" % (
-            env_id, run_id, "XALT_ILLEGAL_VALUE")
-          conn.query(query)
-          
-      v = XALT_Stack.pop()
-      carp("SUBMIT_HOST",v)
-      query = "COMMIT"
-      conn.query(query)
-      conn.close()
+        db_join_run_env = XALT_join_run_env(
+            run = db_run,
+            env_name = db_env,
+            env_value = value.encode("ascii","ignore")
+        )
+
+        session.add(db_env)
+        session.add(db_join_run_env)
+
+      session.commit()
 
     except Exception as e:
-      print(XALT_Stack.contents())
-      print(query.encode("ascii","ignore"))
       print ("run_to_db(): ",e)
       sys.exit (1)

@@ -33,14 +33,13 @@
 #
 
 from __future__  import print_function
-import os, sys, re, MySQLdb, json, time, argparse
+import os, sys, json, time, argparse
 
 dirNm, execName = os.path.split(os.path.realpath(sys.argv[0]))
 sys.path.insert(1,os.path.realpath(os.path.join(dirNm, "../libexec")))
 sys.path.insert(1,os.path.realpath(os.path.join(dirNm, "../site")))
 
 from XALTdb        import XALTdb
-from xalt_site_pkg import translate
 from xalt_util     import *
 from xalt_global   import *
 from progressBar   import ProgressBar
@@ -90,7 +89,7 @@ def link_json_to_db(xalt, listFn, reverseMapT, linkFnA):
       f     = open(fn,"r")
       try:
         linkT = json.loads(f.read())
-      except:  
+      except:
         f.close()
         v = XALT_Stack.pop()
         carp("fn",v)
@@ -231,7 +230,6 @@ def main():
     carp("User",v)
     pbar.update(icnt)
 
-  xalt.connect().close()
   pbar.fini()
   t2 = time.time()
   rt = t2 - t1
