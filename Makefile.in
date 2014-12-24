@@ -82,7 +82,7 @@ SITE_PKG        := src/xalt_find_exec_mpich.in.py    src/xalt_find_exec_openmpi.
 		   src/xalt_find_exec_sgimpt.in.py   src/xalt_find_exec_srun.in.py
 SITE_PKG        := $(patsubst %, $(PATH_TO_SRC)/%, $(SITE_PKG))
 
-.PHONY:
+.PHONY: test
 
 all:
 	@echo done
@@ -253,3 +253,6 @@ dist:
 
 makefile: $(PATH_TO_SRC)/Makefile.in $(PATH_TO_SRC)/config.status
 	$(PATH_TO_SRC)/config.status $@
+
+test:
+	PYTHONPATH=$(PATH_TO_SRC)/src python -m unittest discover $(PATH_TO_SRC)/test/
