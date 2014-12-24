@@ -102,4 +102,3 @@ def initialize_schema(engine):
 def destroy_schema(connection_string):
   engine = create_engine(connection_string)
   __Base.metadata.drop_all(engine)
-

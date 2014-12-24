@@ -32,10 +32,6 @@ sys.path.append(os.path.realpath(os.path.join(dirNm, "../site")))
 import ConfigParser
 from   xalt_util     import *
 from   xalt_site_pkg import translate
-
-from xalt_db_model import *
-from sqlalchemy import and_
-
 from xalt_db_model import *
 from sqlalchemy import and_
 
@@ -96,41 +92,52 @@ class XALTdb(object):
     @param reverseMapT: The reverse map table that maps directories to modules
     @param linkT:       The table that contains the link data.
     """
-    session = Session()
+    try:
+        if self.__sessionmaker is None:
+            self.connect()
+        session = self.__sessionmaker()
 
-    # check if linkT['uuid'] already in db - if yes: do nothing
-    link = session.query(XALT_link).filter(XALT_link.uuid == linkT['uuid']).scalar()
-    if link is not None:
-      link = XALT_link( uuid = linkT['uuid'],
-                        hash_id = linkT['hash_id'],
-                        link_program = linkT['link_program'],
-                        build_user = linkT['build_user'],
-                        build_syshost = linkT['build_syshost'],
-                        build_epoch = float(linkT['build_epoch']),
-                        date = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(float(linkT['build_epoch']))),
-                        exit_code = convertToInt(linkT['exit_code']),
-                        exec_path = patSQ.sub(r"\\'", linkT['exec_path'])
-                      )
+        # check if linkT['uuid'] already in db - if yes: do nothing
+        db_link = session.query(XALT_link).filter(XALT_link.uuid == linkT['uuid']).scalar()
+        if db_link is None:
+            db_link = XALT_link(
+                uuid = linkT['uuid'],
+                hash_id = linkT['hash_id'],
+                link_program = linkT['link_program'],
+                build_user = linkT['build_user'],
+                build_syshost = linkT['build_syshost'],
+                build_epoch = float(linkT['build_epoch']),
+                date = datetime.fromtimestamp(float(linkT['build_epoch'])),
+                exit_code = convertToInt(linkT['exit_code']),
+                exec_path = patSQ.sub(r"\\'", linkT['exec_path'])
+            )
 
-      for obj in linkT['linkA']:
-        # for each linkT['linkA']:
-        #   - load object id -> if exist use, if not exist -> create
-        obj = session.query(XALT_object).filter(and_(
-                              XALT_object.hash_id == obj[0],
-                              XALT_object.object_path == obj[1],
-                              XALT_object.syshost ==  linkT['build_syshost'])).scalar()
-        if obj_id == None:
-          obj = XALT_object(  hash_id = obj[0],
-                              object_path = obj[1],
-                              syshost = linkT['build_syshost'],
-                              module_name = obj2module(object_path, reverseMapT),
-                              timestamp = datetime.now(),
-                              lib_type = obj_type(object_path)
-                            )
-        link.objects.append(obj)
-        session.add(obj)
-      session.add(link)
-      session.commit()
+            for obj in linkT['linkA']:
+              object_path = obj[0]
+              hash_id = obj[1]
+
+              # for each linkT['linkA']:
+              #   - load object id -> if exist use, if not exist -> create
+              db_obj = session.query(XALT_object).filter(and_(
+                                    XALT_object.hash_id == hash_id,
+                                    XALT_object.object_path == object_path,
+                                    XALT_object.syshost ==  linkT['build_syshost'])).scalar()
+              if db_obj is None:
+                db_obj = XALT_object(
+                    hash_id = hash_id,
+                    object_path = object_path,
+                    syshost = linkT['build_syshost'],
+                    module_name = obj2module(object_path, reverseMapT),
+                    timestamp = datetime.now(),
+                    lib_type = obj_type(object_path)
+                )
+              db_link.objects.append(db_obj)
+              session.add(db_obj)
+            session.add(db_link)
+            session.commit()
+    except Exception as e:
+      print ("link_to_db(): Error ",e)
+      sys.exit (1)
 
   def run_to_db(self, reverseMapT, runT):
     """
