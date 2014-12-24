@@ -101,5 +101,5 @@ def initialize_schema(engine):
   __Base.metadata.create_all(engine)
 
 def destroy_schema(connection_string):
-  engine = create_engine('sqlite:///:memory:')
+  engine = create_engine(connection_string)
   __Base.metadata.drop_all(engine)

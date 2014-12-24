@@ -1,0 +1,61 @@
+{
+  "build_epoch": "1416258732.36",
+  "build_syshost": "xalt-lmod",
+  "build_user": "xalt",
+  "exec_path": "/home/xalt/t/xalt/hello",
+  "exit_code": "",
+  "hash_id": "a72c97afc44e67fb329c20edd0514df7eeeb07ee",
+  "linkA": [
+    [
+      "/lib/x86_64-linux-gnu/ld-2.19.so",
+      "d11ce2e31ab441be705df3061a3d6fb7e41a504e"
+    ],
+    [
+      "/lib/x86_64-linux-gnu/libc-2.19.so",
+      "8edaa7c9675d604525dc68894d9f4283cbbe4684"
+    ],
+    [
+      "/lib/x86_64-linux-gnu/libgcc_s.so.1",
+      "0216d90de6313fc03ea72f5a466601e9878936c0"
+    ],
+    [
+      "/lib/x86_64-linux-gnu/libpthread-2.19.so",
+      "9ecd4089b74f1036c9825c2d082356e9ffb964f3"
+    ],
+    [
+      "/lib/x86_64-linux-gnu/librt-2.19.so",
+      "011ea7ea14e6874e9da0245e4e6ed472d02814ed"
+    ],
+    [
+      "/opt/apps/gcc-4_8/mpich/3.1.1/lib/libmpi.so.12.0.1",
+      "3c6d65206831cdcd97cca20aa033c4f60b7b6830"
+    ],
+    [
+      "/usr/lib/gcc/x86_64-linux-gnu/4.8/crtbegin.o",
+      "8bbcd278cf2e1247a9d8e4c1d5f5aeb87c7f6dd0"
+    ],
+    [
+      "/usr/lib/gcc/x86_64-linux-gnu/4.8/crtend.o",
+      "28704b3b390b399bd45aa6c3af8d1ae00104eaac"
+    ],
+    [
+      "/usr/lib/x86_64-linux-gnu/crt1.o",
+      "48bec2bbc2f85e4e9563ad34482f327810f43341"
+    ],
+    [
+      "/usr/lib/x86_64-linux-gnu/crti.o",
+      "58baeaeffec16d33d9db32f560cc19a12d1880df"
+    ],
+    [
+      "/usr/lib/x86_64-linux-gnu/crtn.o",
+      "dc947515c681b9dcdfac3c875d8ee4cf5ee87d4f"
+    ],
+    [
+      "/usr/lib/x86_64-linux-gnu/libc_nonshared.a",
+      "ce45ed32b18f66b27a408805e2b59342699e0dbc"
+    ]
+  ],
+  "link_program": "gcc",
+  "uuid": "3394fef0-4b67-44ba-8532-a4646ffcc251",
+  "wd": "/home/xalt/t/xalt"
+}
