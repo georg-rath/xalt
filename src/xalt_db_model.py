@@ -55,6 +55,8 @@ class XALT_run(__Base):
   exec_path = Column(String, nullable=False)
   module_name = Column(String, nullable=True)
   cwd = Column(String, nullable=True)
+  job_num_cores = Column(Integer, nullable=True)
+   
   objects = relationship('XALT_object', secondary=relation_assoc_run_object)
   __table_args__ = ( Index('index_run_uuid', 'run_uuid'), Index('index_jobid_syshost', 'job_id', 'syshost') )
 

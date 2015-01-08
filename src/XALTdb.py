@@ -172,27 +172,28 @@ class XALTdb(object):
         exit_status = runT['userT'].get('exit_status',0)
 
         db_run = XALT_run(
-            run_uuid = runT['userT']['run_uuid'],
-            job_id = runT['userT']['job_id'],
-            date = dateTimeStr,
-            syshost = runT['userT']['syshost'],
-            uuid = uuid,
-            hash_id = runT['hash_id'],
-            account = runT['userT']['account'],
-            exec_type = runT['userT']['exec_type'],
-            start_time = runT['userT']['start_time'],
-            end_time = runT['userT']['end_time'],
-            run_time = runT['userT']['run_time'],
-            num_cores = runT['userT']['num_cores'],
-            num_nodes = runT['userT']['num_nodes'],
-            num_threads = runT['userT']['num_threads'],
-            queue = runT['userT']['queue'],
-            exit_code = exit_status,
-            user = runT['userT']['user'],
-            exec_path = runT['userT']['exec_path'],
-            module_name = moduleName,
-            cwd = runT['userT']['cwd']
-        )
+              run_uuid = runT['userT']['run_uuid'],
+              job_id = runT['userT']['job_id'],
+              date = dateTimeStr,
+              syshost = runT['userT']['syshost'],
+              uuid = uuid,
+              hash_id = runT['hash_id'],
+              account = runT['userT']['account'],
+              exec_type = runT['userT']['exec_type'],
+              start_time = runT['userT']['start_time'],
+              end_time = runT['userT']['end_time'],
+              run_time = runT['userT']['run_time'],
+              num_cores = runT['userT']['num_cores'],
+              num_nodes = runT['userT']['num_nodes'],
+              num_threads = runT['userT']['num_threads'],
+              queue = runT['userT']['queue'],
+              exit_code = exit_status,
+              user = runT['userT']['user'],
+              exec_path = runT['userT']['exec_path'],
+              module_name = moduleName,
+              cwd = runT['userT']['cwd'],
+              job_num_cores = job_num_cores
+          )
 
         for obj in runT['libA']:
           object_path = obj[0]
