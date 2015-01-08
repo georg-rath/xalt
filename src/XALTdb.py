@@ -77,7 +77,8 @@ class XALTdb(object):
           initialize_schema(engine)
           self.__sessionmaker = sessionmaker(bind=engine)
 
-    except SQLAlchemyError, e:
+
+    except MySQLdb.Error, e:
       print ("XALTdb: Error %d: %s" % (e.args[0], e.args[1]), file=sys.stderr)
       raise
 
