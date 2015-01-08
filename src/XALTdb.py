@@ -194,7 +194,7 @@ class XALTdb(object):
               user = runT['userT']['user'],
               exec_path = runT['userT']['exec_path'],
               module_name = moduleName,
-              cwd = runT['userT']['cwd']
+              cwd = runT['userT']['cwd'],
               job_num_cores = job_num_cores
           )
 
