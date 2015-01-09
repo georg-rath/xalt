@@ -79,7 +79,6 @@ class XALTdb(object):
     except SQLAlchemyError, e:
       print ("XALTdb: Error %d: %s" % (e.args[0], e.args[1]), file=sys.stderr)
       raise
-
     return self.__sessionmaker
 
   def connection_string(self):
