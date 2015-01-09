@@ -170,6 +170,7 @@ class XALTdb(object):
       else:
         moduleName  = obj2module(runT['userT']['exec_path'], reverseMapT)
         exit_status = runT['userT'].get('exit_status',0)
+        job_num_cores = int(runT['userT'].get('job_num_cores',0))
 
         db_run = XALT_run(
               run_uuid = runT['userT']['run_uuid'],
