@@ -43,8 +43,6 @@ PATH_TO_READLINK:= @PATH_TO_READLINK@
 PATH_TO_DIRNAME := @PATH_TO_DIRNAME@
 PATH_TO_HEAD    := @PATH_TO_HEAD@
 PATH_TO_GREP    := @PATH_TO_GREP@
-PATH_TO_PSTREE  := @PATH_TO_PSTREE@
-BUILD_PSTREE    := @BUILD_PSTREE@
 USE_ARGPARSE    := @USE_CONTRIB_ARGPARSE@
 
 GIT_PROG        := @PATH_TO_GIT@
@@ -89,8 +87,7 @@ all:
 	@echo done
 
 install:  $(DIRLIST) Inst_site Inst_sbin Inst_bin Inst_libexec \
-          Use_getent_yes Use_argparse_$(USE_ARGPARSE)          \
-          Build_pstree_$(BUILD_PSTREE)
+          Use_getent_yes Use_argparse_$(USE_ARGPARSE)
 
 echo:
 	@echo CURDIR: $(CURDIR)
@@ -115,17 +112,6 @@ Inst_sbin: $(SBIN_PKG)
 Inst_bin: $(BIN_PKG)
 	$(MAKE) $(MAKEFLAGS) -f $(CURRENT_MK) FILELIST="$^" DIRLOC=$(DESTDIR)$(BIN)     __installMe
 
-Build_pstree_no:
-
-Build_pstree_yes:
-	cd contrib;                                                       \
-        tar xf psmisc-22.21.tar.gz;                                       \
-        cd psmisc-22.21;                                                  \
-        ./configure --prefix=$(prefix)/psmisc;                            \
-        make CFLAGS="-g -O0";                                             \
-        make DESTDIR=$(DESTDIR) install;                                  \
-        ln -s $(prefix)/psmisc/bin/pstree $(DESTDIR)$(prefix)/libexec;    \
-	cd ..; rm -rf psmisc-22.21
 
 Use_getent_yes:
 	cd $(PATH_TO_SRC)/contrib;                                        \
@@ -164,7 +150,6 @@ __installMe:
 	        -e 's|@grep@|$(PATH_TO_GREP)|g'                            \
 	        -e 's|@version@|$(VERSION)|g'                              \
 	        -e 's|@git@|$(GIT_VERSION)|g'                              \
-	        -e 's|@path_to_pstree@|$(PATH_TO_PSTREE)|g'                \
 	        -e 's|@path_to_uuidgen@|$(PATH_TO_UUIDGEN)|g'              \
                            < $$i > $(DIRLOC)/$$fn$$oext;                   \
             [ "$$ext" = "in" -o "$$ext" = "symm.in" -o "$$ext" = "in.py" ] && \
