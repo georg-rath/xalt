@@ -22,7 +22,8 @@ from __future__         import print_function
 import logging
 from   logging.handlers import SysLogHandler
 from   fnmatch          import fnmatch
-import os, re, sys, subprocess
+from psutil import Process
+import os, re, subprocess
 
 colonPairPat = re.compile(r"([^:]+):(.*)")
 def config_logger():
@@ -42,30 +43,20 @@ def config_logger():
     
   return logger
   
-def extract_compiler(pstree):
+def extract_compiler():
   """
-  Take the output of pstree and find the compiler
-  @param pstree: the single line of processes back to init.
+  Run the tree of parents of the current process to find compiler
   """
-  result  = "unknown"
-  ignoreT = {
-    'pstree'   : True,
-    'ld'       : True,
-    'collect2' : True,
-    }
-    
-  if (pstree == "unknown"):
-    return result
-
-  a = pstree.split("---")
-  n = len(a)
-
-  for cmd in reversed(a):
-    if (not (cmd in ignoreT)):
-      result = cmd
+  cmd = "unknown"
+  p = Process(pid=int(os.getpid()))
+  while p.parent:
+    if p.parent.name not in ['ld', 'collect2']:
+      cmd = p.parent.name
       break
+    p=p.parent
 
   return cmd
+
 
 def files_in_tree(path, pattern):
   """
