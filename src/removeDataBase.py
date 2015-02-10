@@ -25,7 +25,9 @@
 #-----------------------------------------------------------------------
 
 from __future__ import print_function
-import os, sys, re, MySQLdb
+import os, sys
+from sqlalchemy.exc import SQLAlchemyError
+from xalt_db_model import destroy_schema
 
 dirNm, execName = os.path.split(os.path.realpath(sys.argv[0]))
 sys.path.append(os.path.realpath(os.path.join(dirNm, "../libexec")))
@@ -49,7 +51,7 @@ class CmdLineOptions(object):
 
 def main():
   """
-  This program removes the Database used by XALT.
+  This program removes the database tables used by XALT.
   """
 
   args     = CmdLineOptions().execute()
@@ -64,19 +66,10 @@ def main():
       configFn = os.path.abspath(os.path.join(dirNm, "../site", configFn))
       
   xalt = XALTdb(configFn)
-  db   = xalt.db()
 
   try:
-    conn   = xalt.connect()
-    cursor = conn.cursor()
-
-    # If MySQL version < 4.1, comment out the line below
-    cursor.execute("SET SQL_MODE=\"NO_AUTO_VALUE_ON_ZERO\"")
-    # If the database does not exist, create it, otherwise, switch to the database.
-    cursor.execute("DROP DATABASE IF EXISTS %s " % xalt.db())
-
-    cursor.close()
-  except  MySQLdb.Error, e:
+    destroy_schema(xalt.connection_string())
+  except  SQLAlchemyError, e:
     print ("Error %d: %s" % (e.args[0], e.args[1]))
     sys.exit (1)
 
