@@ -13,7 +13,7 @@ class TestXALTdb(TestCase):
         cls.reverseMap = json.load(open(os.path.join(os.path.dirname(__file__), 'xaltdb_test_data/reverseMap.json')))
 
     def setUp(self):
-        self.db_class = XALTdb(os.path.join(os.path.dirname(__file__), 'xalt_db_test_memory.conf'))
+        self.db_class = XALTdb(os.path.join(os.path.dirname(__file__), 'xaltdb_test_data/xalt_db_test_memory.conf'))
 
     def test_initialize_with_wrong_config_file(self):
         with self.assertRaises(ConfigParser.Error) as context:
