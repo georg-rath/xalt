@@ -73,6 +73,7 @@ class XALTdb(object):
     try:
         if self.__sessionmaker is None:
           engine = create_engine(self.__connection_string)
+          initialize_schema(engine)
           self.__sessionmaker = sessionmaker(bind=engine)
 
     except SQLAlchemyError, e:
