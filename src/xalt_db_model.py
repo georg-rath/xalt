@@ -96,11 +96,3 @@ class XALT_join_run_env(__Base):
   env_value = Column(LargeBinary, nullable=False)
   env_name = relationship('XALT_env_name')
   run = relationship('XALT_run')
-
-
-def initialize_schema(engine):
-  __Base.metadata.create_all(engine)
-
-def destroy_schema(connection_string):
-  engine = create_engine(connection_string)
-  __Base.metadata.drop_all(engine)
