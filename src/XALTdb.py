@@ -155,11 +155,6 @@ class XALTdb(object):
       translate(nameA, runT['envT'], runT['userT'])
       dateTimeStr = datetime.fromtimestamp(float(runT['userT']['start_time']))
       uuid = runT['xaltLinkT'].get('Build.UUID')
-      if (uuid):
-        uuid = "'" + uuid + "'"
-      else:
-        uuid = "NULL"
-
 
       db_run = session.query(XALT_run).filter(XALT_run.run_uuid == runT['userT']['run_uuid']).scalar()
 
